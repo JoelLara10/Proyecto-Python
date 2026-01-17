@@ -1,0 +1,20 @@
+# Entorno virtual
+venv/
+.venv/
+
+# Archivos de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Archivos de PyCharm
+.idea/
+
+# Archivos sensibles (no subas contraseñas o keys)
+*.env
+app.secret_key  # Si tienes un archivo con secrets
+
+# Otros
+*.log
+*.db  # Si tienes bases de datos locales
