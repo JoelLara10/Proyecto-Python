@@ -92,7 +92,7 @@
                 <i class="fas fa-file-pdf"></i> Imprimir Documentos
             </a>
         </div>
-        {% if role == 1 %}
+        {% if role == 'admin' %}
         <div class="col-md-3">
             <a href="#" class="btn btn-warning action-btn w-100 text-white">
                 <i class="fas fa-users"></i> Ver Expedientes
@@ -141,7 +141,10 @@
                 {% for f in hospitalized %}
                 <tr>
                     <td class="text-center">
-                        <a href="#" class="btn btn-sm btn-primary"><i class="fas fa-edit"></i></a>
+                        <a href="{{ url_for('editar_paciente', id_exp=f.Id_exp) }}"
+   class="btn btn-sm btn-primary">
+   <i class="fas fa-edit"></i>
+</a>
                     </td>
                     <td class="text-center">
                         <a href="#" class="btn btn-sm btn-warning text-white"><i class="fas fa-dollar-sign"></i></a>
@@ -180,7 +183,11 @@
                 {% for f in urgencias %}
                 <tr>
                     <td class="text-center">
-                        <a href="#" class="btn btn-sm btn-primary"><i class="fas fa-edit"></i></a>
+                        <a href="{{ url_for('editar_paciente', id_exp=f.Id_exp) }}"
+   class="btn btn-sm btn-primary">
+   <i class="fas fa-edit"></i>
+</a>
+
                     </td>
                     <td>{{ f.Id_exp }}</td>
                     <td>{{ f.papell }} {{ f.sapell }} {{ f.nom_pac }}</td>
@@ -237,7 +244,7 @@
     $(document).ready(function () {
         $("#search").on("keyup", function () {
             var value = $(this).val().toLowerCase();
-            $("#mytable tbody tr").filter(function () {
+            $(".table tbody tr").filter(function () {
                 $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
             });
         });

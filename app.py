@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 import pymysql
 import bcrypt
 from datetime import datetime, date
+import pymysql.cursors
 
 app = Flask(__name__)
 app.secret_key = 'tu_clave_secreta_aqui'  # Cambia esto por algo seguro
@@ -30,6 +31,11 @@ def _jinja2_filter_datetime(date, fmt='%d/%m/%Y'):
         # Asume formato de entrada si es string (ajusta según tu DB)
         date = datetime.strptime(date, '%Y-%m-%d') if len(date) == 10 else datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
     return date.strftime(fmt)
+
+
+# ====================================================================================
+# ============================       INICIO       ====================================
+# ====================================================================================
 
 
 @app.route('/')
@@ -81,6 +87,10 @@ def dashboard():
     return render_template('dashboard.html', role=role, menu_options=menu_options)
 
 
+# ====================================================================================
+# ========================       ADMINISTRATIVO       ================================
+# ====================================================================================
+
 @app.route('/admin/administrativo')
 def administrativo():
     if 'user_id' not in session or session['role'] != 'admin':
@@ -93,7 +103,7 @@ def administrativo():
     }
     img_sistema = 'logo.jpg'  # Placeholder
 
-    return render_template('administrativo.html', usuario=usuario, img_sistema=img_sistema)
+    return render_template('administrativo/administrativo.html', usuario=usuario, img_sistema=img_sistema)
 
 
 @app.route('/admin/gestion_pacientes')
@@ -103,7 +113,7 @@ def gestion_pacientes():
         return redirect(url_for('dashboard'))
 
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(pymysql.cursors.DictCursor)
 
     # Query para hospitalizados (ajusta filtros según área)
     cursor.execute("""
@@ -115,11 +125,12 @@ def gestion_pacientes():
                           p.tel,
                           a.id_atencion,
                           a.area,
-                          a.num_cama,
-                          a.fecha_ing
+                          a.fecha_ing,
+                          c.numero AS num_cama
                    FROM pacientes p
                             JOIN atencion a ON p.Id_exp = a.Id_exp
-                   WHERE a.area = 'Hospitalizado' # Ejemplo de filtro
+                            LEFT JOIN camas c ON a.id_cama = c.id_cama
+                   WHERE a.area = 'Hospitalizado'
                    """)
     hospitalized = cursor.fetchall()
     for p in hospitalized:
@@ -135,10 +146,11 @@ def gestion_pacientes():
                           p.tel,
                           a.id_atencion,
                           a.area,
-                          a.num_cama,
-                          a.fecha_ing
+                          a.fecha_ing,
+                          c.numero AS num_cama
                    FROM pacientes p
                             JOIN atencion a ON p.Id_exp = a.Id_exp
+                            LEFT JOIN camas c ON a.id_cama = c.id_cama
                    WHERE a.area = 'Urgencias'
                    """)
     urgencias = cursor.fetchall()
@@ -154,10 +166,11 @@ def gestion_pacientes():
                           p.tel,
                           a.id_atencion,
                           a.area,
-                          a.num_cama,
-                          a.fecha_ing
+                          a.fecha_ing,
+                          c.numero AS num_cama
                    FROM pacientes p
                             JOIN atencion a ON p.Id_exp = a.Id_exp
+                            LEFT JOIN camas c ON a.id_cama = c.id_cama
                    WHERE a.area = 'Ambulatorio'
                    """)
     ambulatorios = cursor.fetchall()
@@ -167,12 +180,13 @@ def gestion_pacientes():
     cursor.close()
     conn.close()
 
-    return render_template('gestion_pacientes.html',
+    return render_template('administrativo/pacientes/gestion_pacientes.html',
                            hospitalized=hospitalized,
                            urgencias=urgencias,
                            ambulatorios=ambulatorios,
                            role=session['role'],
                            usuario={'id_usua': session['user_id'], 'id_rol': session['role']})
+
 
 @app.route('/admin/nuevo_paciente', methods=['GET', 'POST'])
 def nuevo_paciente():
@@ -181,7 +195,7 @@ def nuevo_paciente():
         return redirect(url_for('dashboard'))
 
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(pymysql.cursors.DictCursor)  # Usa DictCursor para resultados como diccionarios
 
     # ================= GET =================
     cursor.execute("""
@@ -190,6 +204,13 @@ def nuevo_paciente():
         WHERE ocupada = 0
     """)
     camas = cursor.fetchall()
+
+    cursor.execute("""
+        SELECT id, username
+        FROM users
+        WHERE role = 'medico'
+    """)
+    medicos = cursor.fetchall()
 
     if request.method == 'POST':
         try:
@@ -200,15 +221,28 @@ def nuevo_paciente():
             nom_pac = request.form['nom_pac']
             fecnac = request.form['fecnac']
             tel = request.form['tel']
+            alergias = request.form.get('alergias', '')
 
             # ---------- ATENCIÓN ----------
             area = request.form['area']
-            num_cama = request.form.get('id_cama') or None
+            id_cama = request.form.get('id_cama') or None
+            motivo = request.form['motivo']
+            especialidad = request.form['especialidad']
 
             # ---------- FAMILIAR ----------
             fam_nombre = request.form['fam_nombre']
             fam_parentesco = request.form['fam_parentesco']
             fam_tel = request.form['fam_tel']
+
+            # ---------- MÉDICOS ----------
+            medicos_list = [
+                request.form.get('medico1'),
+                request.form.get('medico2'),
+                request.form.get('medico3'),
+                request.form.get('medico4'),
+                request.form.get('medico5')
+            ]
+            medicos_list = [m for m in medicos_list if m]  # Filtrar no vacíos
 
             # ===== INSERT PACIENTE =====
             cursor.execute("""
@@ -218,19 +252,28 @@ def nuevo_paciente():
 
             id_exp = cursor.lastrowid
 
-            # ===== INSERT ATENCION (CORREGIDO) =====
+            # ===== INSERT ATENCION =====
             cursor.execute("""
-                INSERT INTO atencion (Id_exp, area, num_cama)
-                VALUES (%s, %s, %s)
-            """, (id_exp, area, num_cama))
+                INSERT INTO atencion (Id_exp, area, id_cama, motivo, especialidad, alergias)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (id_exp, area, id_cama, motivo, especialidad, alergias))
+
+            id_atencion = cursor.lastrowid
+
+            # ===== INSERT MÉDICOS =====
+            for id_medico in medicos_list:
+                cursor.execute("""
+                    INSERT INTO atencion_medicos (id_atencion, id_medico)
+                    VALUES (%s, %s)
+                """, (id_atencion, id_medico))
 
             # ===== MARCAR CAMA OCUPADA =====
-            if num_cama:
+            if id_cama:
                 cursor.execute("""
                     UPDATE camas
                     SET ocupada = 1
-                    WHERE numero = %s
-                """, (num_cama,))
+                    WHERE id_cama = %s
+                """, (id_cama,))
 
             # ===== INSERT FAMILIAR =====
             cursor.execute("""
@@ -250,8 +293,130 @@ def nuevo_paciente():
             cursor.close()
             conn.close()
 
-    return render_template('nuevo_paciente.html', camas=camas)
+    return render_template('administrativo/pacientes/nuevo_paciente.html', camas=camas, medicos=medicos)
 
+
+@app.route('/admin/editar_paciente/<int:id_exp>', methods=['GET', 'POST'])
+def editar_paciente(id_exp):
+    if 'user_id' not in session or session['role'] != 'admin':
+        flash('Acceso denegado.', 'error')
+        return redirect(url_for('dashboard'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(pymysql.cursors.DictCursor)
+
+    # ===== DATOS PARA SELECTS =====
+    cursor.execute("SELECT id_cama, numero FROM camas WHERE ocupada = 0 OR id_cama = (SELECT id_cama FROM atencion WHERE Id_exp = %s)", (id_exp,))
+    camas = cursor.fetchall()
+
+    cursor.execute("SELECT id, username FROM users WHERE role = 'medico'")
+    medicos = cursor.fetchall()
+
+    # ===== GET =====
+    cursor.execute("""
+        SELECT p.*, a.area, a.id_cama, a.motivo, a.especialidad, a.alergias
+        FROM pacientes p
+        JOIN atencion a ON p.Id_exp = a.Id_exp
+        WHERE p.Id_exp = %s
+    """, (id_exp,))
+    paciente = cursor.fetchone()
+
+    cursor.execute("""
+        SELECT id_medico
+        FROM atencion_medicos
+        WHERE id_atencion = (
+            SELECT id_atencion FROM atencion WHERE Id_exp = %s
+        )
+    """, (id_exp,))
+    medicos_asignados = [m['id_medico'] for m in cursor.fetchall()]
+
+    cursor.execute("""
+        SELECT * FROM familiares
+        WHERE Id_exp = %s
+    """, (id_exp,))
+    familiar = cursor.fetchone()
+
+    if request.method == 'POST':
+        try:
+            # ===== PACIENTE =====
+            cursor.execute("""
+                UPDATE pacientes
+                SET curp=%s, papell=%s, sapell=%s, nom_pac=%s, fecnac=%s, tel=%s
+                WHERE Id_exp=%s
+            """, (
+                request.form['curp'],
+                request.form['papell'],
+                request.form['sapell'],
+                request.form['nom_pac'],
+                request.form['fecnac'],
+                request.form['tel'],
+                id_exp
+            ))
+
+            # ===== ATENCION =====
+            cursor.execute("""
+                UPDATE atencion
+                SET area=%s, id_cama=%s, motivo=%s, especialidad=%s, alergias=%s
+                WHERE Id_exp=%s
+            """, (
+                request.form['area'],
+                request.form.get('id_cama') or None,
+                request.form['motivo'],
+                request.form['especialidad'],
+                request.form.get('alergias', ''),
+                id_exp
+            ))
+
+            # ===== MÉDICOS =====
+            cursor.execute("""
+                DELETE FROM atencion_medicos
+                WHERE id_atencion = (
+                    SELECT id_atencion FROM atencion WHERE Id_exp=%s
+                )
+            """, (id_exp,))
+
+            cursor.execute("SELECT id_atencion FROM atencion WHERE Id_exp=%s", (id_exp,))
+            id_atencion = cursor.fetchone()['id_atencion']
+
+            for m in ['medico1','medico2','medico3','medico4','medico5']:
+                if request.form.get(m):
+                    cursor.execute("""
+                        INSERT INTO atencion_medicos (id_atencion, id_medico)
+                        VALUES (%s, %s)
+                    """, (id_atencion, request.form[m]))
+
+            # ===== FAMILIAR =====
+            cursor.execute("""
+                UPDATE familiares
+                SET nombre=%s, parentesco=%s, telefono=%s
+                WHERE Id_exp=%s
+            """, (
+                request.form['fam_nombre'],
+                request.form['fam_parentesco'],
+                request.form['fam_tel'],
+                id_exp
+            ))
+
+            conn.commit()
+            flash('Paciente actualizado correctamente.', 'success')
+            return redirect(url_for('gestion_pacientes'))
+
+        except Exception as e:
+            conn.rollback()
+            flash(f'Error al actualizar: {e}', 'error')
+
+        finally:
+            cursor.close()
+            conn.close()
+
+    return render_template(
+        'administrativo/pacientes/editar_paciente.html',
+        paciente=paciente,
+        camas=camas,
+        medicos=medicos,
+        medicos_asignados=medicos_asignados,
+        familiar=familiar
+    )
 
 
 @app.route('/logout')

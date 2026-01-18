@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Editar Paciente - INEO</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://use.fontawesome.com/releases/v5.7.0/css/all.css" rel="stylesheet">
+
+    <style>
+        body { background-color: #f4f6f9; }
+        .navbar { background-color: #1e3c72; }
+        .card-main {
+            background: rgba(255,255,255,0.35);
+            backdrop-filter: blur(14px);
+            border-radius: 22px;
+        }
+        .section-title {
+            font-size: 22px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar navbar-expand-lg shadow">
+    <div class="container-fluid">
+        <a href="{{ url_for('gestion_pacientes') }}" class="btn btn-outline-light btn-sm me-3">
+            <i class="bi bi-arrow-left"></i> Regresar
+        </a>
+
+        <div class="ms-auto">
+            <span class="navbar-text text-white me-3">
+                <i class="bi bi-person-circle"></i> {{ session['username'] }}
+            </span>
+            <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">
+                <i class="bi bi-box-arrow-right"></i> Cerrar sesión
+            </a>
+        </div>
+    </div>
+</nav>
+
+<!-- CONTENIDO -->
+<form method="POST" class="mt-4">
+
+<div class="container">
+<div class="card shadow-lg border-0 mb-4 card-main">
+<div class="card-body p-4">
+
+<!-- ================= DATOS PACIENTE ================= -->
+<h5 class="text-primary fw-bold mb-3">
+<i class="fas fa-user me-2"></i> Datos del Paciente
+</h5>
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label class="form-label fw-semibold">CURP</label>
+        <input type="text" name="curp" class="form-control"
+               value="{{ paciente.curp }}" maxlength="18" required>
+    </div>
+    <div class="col-md-4">
+        <label class="form-label fw-semibold">Apellido Paterno</label>
+        <input type="text" name="papell" class="form-control"
+               value="{{ paciente.papell }}" required>
+    </div>
+    <div class="col-md-4">
+        <label class="form-label fw-semibold">Apellido Materno</label>
+        <input type="text" name="sapell" class="form-control"
+               value="{{ paciente.sapell }}">
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <label class="form-label fw-semibold">Nombre(s)</label>
+        <input type="text" name="nom_pac" class="form-control"
+               value="{{ paciente.nom_pac }}" required>
+    </div>
+    <div class="col-md-3">
+        <label class="form-label fw-semibold">Fecha de nacimiento</label>
+        <input type="date" name="fecnac" class="form-control"
+               value="{{ paciente.fecnac }}" required>
+    </div>
+    <div class="col-md-3">
+        <label class="form-label fw-semibold">Teléfono</label>
+        <input type="text" name="tel" class="form-control"
+               value="{{ paciente.tel }}">
+    </div>
+</div>
+
+<hr>
+
+<!-- ================= ATENCIÓN ================= -->
+<h5 class="text-success fw-bold mb-3">
+<i class="fas fa-hospital me-2"></i> Atención Médica
+</h5>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <label class="form-label fw-semibold">Área</label>
+        <select name="area" class="form-select" required>
+            <option value="Hospitalizado" {{ 'selected' if paciente.area=='Hospitalizado' else '' }}>Hospitalizado</option>
+            <option value="Urgencias" {{ 'selected' if paciente.area=='Urgencias' else '' }}>Urgencias</option>
+            <option value="Ambulatorio" {{ 'selected' if paciente.area=='Ambulatorio' else '' }}>Ambulatorio</option>
+        </select>
+    </div>
+
+    <div class="col-md-6">
+        <label class="form-label fw-semibold">Habitación</label>
+        <select name="id_cama" class="form-select">
+            <option value="">Seleccionar</option>
+            {% for c in camas %}
+            <option value="{{ c.id_cama }}"
+                {{ 'selected' if c.id_cama == paciente.id_cama else '' }}>
+                {{ c.numero }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <label class="form-label fw-semibold">Motivo de atención</label>
+        <select name="motivo" class="form-select" required>
+            <option value="Consulta general" {{ 'selected' if paciente.motivo=='Consulta general' else '' }}>Consulta general</option>
+            <option value="Urgencia" {{ 'selected' if paciente.motivo=='Urgencia' else '' }}>Urgencia</option>
+            <option value="Cirugía" {{ 'selected' if paciente.motivo=='Cirugía' else '' }}>Cirugía</option>
+            <option value="Chequeo rutinario" {{ 'selected' if paciente.motivo=='Chequeo rutinario' else '' }}>Chequeo rutinario</option>
+        </select>
+    </div>
+
+    <div class="col-md-6">
+        <label class="form-label fw-semibold">Especialidad</label>
+        <select name="especialidad" class="form-select" required>
+            <option value="Medicina general" {{ 'selected' if paciente.especialidad=='Medicina general' else '' }}>Medicina general</option>
+            <option value="Cardiología" {{ 'selected' if paciente.especialidad=='Cardiología' else '' }}>Cardiología</option>
+            <option value="Pediatría" {{ 'selected' if paciente.especialidad=='Pediatría' else '' }}>Pediatría</option>
+            <option value="Cirugía" {{ 'selected' if paciente.especialidad=='Cirugía' else '' }}>Cirugía</option>
+        </select>
+    </div>
+</div>
+
+<hr>
+
+<!-- ================= INFORMACIÓN MÉDICA ================= -->
+<h5 class="text-info fw-bold mb-3">
+<i class="fas fa-stethoscope me-2"></i> Información Médica
+</h5>
+
+<textarea name="alergias" class="form-control mb-4" rows="3">{{ paciente.alergias }}</textarea>
+
+<div class="row mb-4">
+{% for i in range(1,6) %}
+<div class="col-md-6 mb-3">
+    <label class="form-label fw-semibold">Médico tratante {{ i }}</label>
+    <select name="medico{{ i }}" class="form-select">
+        <option value="">Seleccionar</option>
+        {% for m in medicos %}
+        <option value="{{ m.id }}"
+            {{ 'selected' if m.id in medicos_asignados else '' }}>
+            {{ m.username }}
+        </option>
+        {% endfor %}
+    </select>
+</div>
+{% endfor %}
+</div>
+
+<hr>
+
+<!-- ================= FAMILIAR ================= -->
+<h5 class="text-warning fw-bold mb-3">
+<i class="fas fa-users me-2"></i> Familiar Responsable
+</h5>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <label class="form-label fw-semibold">Nombre</label>
+        <input type="text" name="fam_nombre" class="form-control"
+               value="{{ familiar.nombre }}" required>
+    </div>
+    <div class="col-md-4">
+        <label class="form-label fw-semibold">Parentesco</label>
+        <input type="text" name="fam_parentesco" class="form-control"
+               value="{{ familiar.parentesco }}">
+    </div>
+    <div class="col-md-4">
+        <label class="form-label fw-semibold">Teléfono</label>
+        <input type="text" name="fam_tel" class="form-control"
+               value="{{ familiar.telefono }}">
+    </div>
+</div>
+
+<!-- ================= BOTONES ================= -->
+<div class="d-flex justify-content-end gap-2">
+    <a href="{{ url_for('gestion_pacientes') }}" class="btn btn-outline-secondary px-4">
+        <i class="fas fa-times me-1"></i> Cancelar
+    </a>
+
+    <button type="submit" class="btn btn-primary px-4">
+        <i class="fas fa-save me-1"></i> Actualizar Paciente
+    </button>
+</div>
+
+</div>
+</div>
+</div>
+</form>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

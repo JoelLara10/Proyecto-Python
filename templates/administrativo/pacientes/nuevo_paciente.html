@@ -139,11 +139,104 @@
           </select>
         </div>
         <div class="col-md-6">
-          <label class="form-label fw-semibold">Cama</label>
+          <label class="form-label fw-semibold">Habitación</label>
           <select name="id_cama" class="form-select">
-            <option value="">No aplica</option>
+            <option value="">Seleccionar</option>
             {% for cama in camas %}
               <option value="{{ cama.id_cama }}">{{ cama.numero }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="row mb-4">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Motivo de atención</label>
+          <select name="motivo" class="form-select" required>
+            <option value="">Seleccionar</option>
+            <!-- Ejemplos de opciones; ajusta según necesidades -->
+            <option value="Consulta general">Consulta general</option>
+            <option value="Urgencia">Urgencia</option>
+            <option value="Cirugía">Cirugía</option>
+            <option value="Chequeo rutinario">Chequeo rutinario</option>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Especialidad</label>
+          <select name="especialidad" class="form-select" required>
+            <option value="">Seleccionar</option>
+            <!-- Ejemplos de opciones; ajusta según necesidades -->
+            <option value="Medicina general">Medicina general</option>
+            <option value="Cardiología">Cardiología</option>
+            <option value="Pediatría">Pediatría</option>
+            <option value="Cirugía">Cirugía</option>
+          </select>
+        </div>
+      </div>
+
+      <hr class="my-4">
+
+      <!-- ================= INFORMACIÓN MÉDICA ================= -->
+      <h5 class="mb-3 text-info fw-bold">
+        <i class="fas fa-stethoscope me-2"></i> Información Médica
+      </h5>
+
+      <div class="row mb-3">
+        <div class="col-md-12">
+          <label class="form-label fw-semibold">Alergias</label>
+          <textarea name="alergias" class="form-control" rows="3" placeholder="Alergias del paciente"></textarea>
+        </div>
+      </div>
+
+      <div class="row mb-4">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Médico tratante</label>
+          <select name="medico1" class="form-select">
+            <option value="">Seleccionar</option>
+            {% for m in medicos %}
+              <option value="{{ m.id }}">{{ m.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Médico tratante 2</label>
+          <select name="medico2" class="form-select">
+            <option value="">Seleccionar</option>
+            {% for m in medicos %}
+              <option value="{{ m.id }}">{{ m.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="row mb-4">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Médico tratante 3</label>
+          <select name="medico3" class="form-select">
+            <option value="">Seleccionar</option>
+            {% for m in medicos %}
+              <option value="{{ m.id }}">{{ m.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Médico tratante 4</label>
+          <select name="medico4" class="form-select">
+            <option value="">Seleccionar</option>
+            {% for m in medicos %}
+              <option value="{{ m.id }}">{{ m.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="row mb-4">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Médico tratante 5</label>
+          <select name="medico5" class="form-select">
+            <option value="">Seleccionar</option>
+            {% for m in medicos %}
+              <option value="{{ m.id }}">{{ m.username }}</option>
             {% endfor %}
           </select>
         </div>
@@ -178,7 +271,7 @@
           <i class="fas fa-arrow-left me-1"></i> Cancelar
         </a>
 
-        <button class="btn btn-success px-4">
+        <button type="submit" class="btn btn-success px-4">
           <i class="fas fa-save me-1"></i> Guardar Paciente
         </button>
       </div>
