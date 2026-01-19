@@ -1,10 +1,13 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
+from templates.administrativo.pacientes.doc_pacientes import pdf
 import pymysql
 import bcrypt
 from datetime import datetime, date
 import pymysql.cursors
 
+
 app = Flask(__name__)
+app.register_blueprint(pdf)
 app.secret_key = 'tu_clave_secreta_aqui'  # Cambia esto por algo seguro
 
 # Configuración de MySQL
@@ -417,6 +420,36 @@ def editar_paciente(id_exp):
         medicos_asignados=medicos_asignados,
         familiar=familiar
     )
+
+
+@app.route('/admin/documentos_pacientes')
+def documentos_pacientes():
+    if 'user_id' not in session or session['role'] != 'admin':
+        flash('Acceso denegado.', 'error')
+        return redirect(url_for('dashboard'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(pymysql.cursors.DictCursor)
+
+    cursor.execute("""
+        SELECT p.Id_exp, p.papell, p.sapell, p.nom_pac,
+               a.id_atencion, a.fecha_ing
+        FROM pacientes p
+        JOIN atencion a ON p.Id_exp = a.Id_exp
+        ORDER BY a.fecha_ing DESC
+    """)
+
+    pacientes = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return render_template(
+        'administrativo/pacientes/doc_pacientes/documentos_pacientes.html',
+        pacientes=pacientes
+    )
+
+
 
 
 @app.route('/logout')
