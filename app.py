@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from templates.administrativo.pacientes.doc_pacientes import pdf
 import pymysql
 import bcrypt
@@ -133,7 +133,7 @@ def gestion_pacientes():
                    FROM pacientes p
                             JOIN atencion a ON p.Id_exp = a.Id_exp
                             LEFT JOIN camas c ON a.id_cama = c.id_cama
-                   WHERE a.area = 'Hospitalizado'
+                   WHERE a.area = 'Hospitalizado' AND a.status = 'ABIERTA'
                    """)
     hospitalized = cursor.fetchall()
     for p in hospitalized:
@@ -154,7 +154,7 @@ def gestion_pacientes():
                    FROM pacientes p
                             JOIN atencion a ON p.Id_exp = a.Id_exp
                             LEFT JOIN camas c ON a.id_cama = c.id_cama
-                   WHERE a.area = 'Urgencias'
+                   WHERE a.area = 'Urgencias' AND a.status = 'ABIERTA'
                    """)
     urgencias = cursor.fetchall()
     for p in urgencias:
@@ -174,7 +174,7 @@ def gestion_pacientes():
                    FROM pacientes p
                             JOIN atencion a ON p.Id_exp = a.Id_exp
                             LEFT JOIN camas c ON a.id_cama = c.id_cama
-                   WHERE a.area = 'Ambulatorio'
+                   WHERE a.area = 'Ambulatorio' AND a.status = 'ABIERTA'
                    """)
     ambulatorios = cursor.fetchall()
     for p in ambulatorios:
@@ -189,7 +189,6 @@ def gestion_pacientes():
                            ambulatorios=ambulatorios,
                            role=session['role'],
                            usuario={'id_usua': session['user_id'], 'id_rol': session['role']})
-
 
 @app.route('/admin/nuevo_paciente', methods=['GET', 'POST'])
 def nuevo_paciente():
@@ -450,6 +449,121 @@ def documentos_pacientes():
     )
 
 
+@app.route('/buscar-paciente')
+def buscar_paciente():
+    q = request.args.get('q', '')
+    conn = get_db_connection()
+
+    # 👇 CLAVE: cursor como diccionario
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT Id_exp, curp, papell, sapell, nom_pac, fecnac, tel
+        FROM pacientes
+        WHERE curp LIKE %s
+           OR nom_pac LIKE %s
+           OR papell LIKE %s
+        LIMIT 5
+    """, (f"%{q}%", f"%{q}%", f"%{q}%"))
+
+    pacientes = cur.fetchall()
+    conn.close()
+
+    # 👇 Convertir fecha a string
+    for p in pacientes:
+        if p["fecnac"]:
+            p["fecnac"] = p["fecnac"].strftime('%Y-%m-%d')
+
+    return jsonify(pacientes)
+
+
+@app.route('/expedientes')
+@app.route('/expedientes')
+def ver_expedientes():
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT
+            e.id_expediente,
+            p.Id_exp,
+            CONCAT(p.papell, ' ', p.sapell, ' ', p.nom_pac) AS paciente,
+            a.area,
+            a.fecha_ing,
+            e.fecha_alta,
+            u.username AS usuario_alta,
+            a.id_atencion
+        FROM expedientes e
+        JOIN pacientes p ON e.id_exp = p.Id_exp
+        JOIN atencion a ON e.id_atencion = a.id_atencion
+        LEFT JOIN users u ON e.usuario_alta = u.id
+        ORDER BY e.fecha_alta DESC;
+    """)
+
+    expedientes = cur.fetchall()
+    conn.close()
+
+    return render_template(
+        'administrativo/pacientes/exped/expedientes.html',
+        expedientes=expedientes
+    )
+
+
+@app.route('/expediente/<int:id_atencion>/<int:id_exp>', methods=['GET', 'POST'])
+def expediente(id_atencion, id_exp):
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    # ===== DATOS PACIENTE + ATENCIÓN =====
+    cur.execute("""
+        SELECT p.Id_exp, p.papell, p.sapell, p.nom_pac,
+               a.id_atencion, a.area, a.fecha_ing, a.status
+        FROM pacientes p
+        JOIN atencion a ON a.Id_exp = p.Id_exp
+        WHERE a.id_atencion = %s
+    """, (id_atencion,))
+    pac = cur.fetchone()
+
+    # ===== CUENTA =====
+    cur.execute("""
+        SELECT fecha, descripcion, cantidad, precio, subtotal
+        FROM cuenta_paciente
+        WHERE id_atencion = %s
+    """, (id_atencion,))
+    cuenta = cur.fetchall()
+
+    cur.execute("""
+        SELECT IFNULL(SUM(subtotal),0) AS total
+        FROM cuenta_paciente
+        WHERE id_atencion = %s
+    """, (id_atencion,))
+    total = cur.fetchone()['total']
+
+    # ===== CERRAR CUENTA =====
+    if request.method == 'POST' and pac['status'] == 'ABIERTA':
+        cur.execute("""
+            UPDATE atencion
+            SET status = 'CERRADA'
+            WHERE id_atencion = %s
+        """, (id_atencion,))
+
+        cur.execute("""
+            INSERT INTO expedientes (id_exp, id_atencion, fecha_alta, usuario_alta)
+            VALUES (%s, %s, NOW(), %s)
+        """, (id_exp, id_atencion, session['user_id']))
+
+        conn.commit()
+        conn.close()
+        return redirect(url_for('expediente', id_atencion=id_atencion, id_exp=id_exp))
+
+    conn.close()
+
+    return render_template(
+        'administrativo/pacientes/cuenta_pac/expediente.html',
+        pac=pac,
+        cuenta=cuenta,
+        total=total
+    )
 
 
 @app.route('/logout')
